@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_bcrypt import Bcrypt
 import sqlite3
 import os
@@ -20,6 +20,31 @@ def init_db():
         conn.executescript(f.read().decode('utf8'))
     conn.commit()
     conn.close()
+
+@app.route('/')
+def homepage():
+    return render_template('index.html')
+
+@app.route('/packages', methods=['GET'])
+def get_packages():
+    conn = get_db_connection()
+    packages = conn.execute('SELECT * FROM packages').fetchall()
+    conn.close()
+
+    return jsonify([dict(row) for row in packages])
+
+@app.route('/packages', methods=['POST'])
+def create_package():
+    name = request.json['name']
+    description = request.json['description']
+    version = request.json['version']
+
+    conn = get_db_connection()
+    conn.execute('INSERT INTO packages (name, description, version) VALUES (?, ?, ?)', (name, description, version))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "Package created successfully!"}), 201
 
 @app.route('/signup', methods=['POST'])
 def signup():
