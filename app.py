@@ -16,6 +16,7 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     with app.open_resource('schema.sql') as f:
+        conn.executescript('DROP TABLE IF EXISTS users; DROP TABLE IF EXISTS packages;')
         conn.executescript(f.read().decode('utf8'))
     conn.commit()
     conn.close()
