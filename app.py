@@ -1,78 +1,48 @@
 from flask import Flask, request, jsonify, render_template
-from flask_bcrypt import Bcrypt
-import sqlite3
+from flask_sqlalchemy import SQLAlchemy
 import os
 
 app = Flask(__name__)
-bcrypt = Bcrypt(app)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://user:password@localhost/dbname')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-# Create a database connection
-def get_db_connection():
-    conn = sqlite3.connect(os.getenv('DATABASE_URL', 'database.db'))
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# Initialize the database
-def init_db():
-    conn = get_db_connection()
-    with app.open_resource('schema.sql') as f:
-        conn.executescript('DROP TABLE IF EXISTS users; DROP TABLE IF EXISTS packages;')
-        conn.executescript(f.read().decode('utf8'))
-    conn.commit()
-    conn.close()
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
 
 @app.route('/')
-def homepage():
+def index():
     return render_template('index.html')
-
-@app.route('/packages', methods=['GET'])
-def get_packages():
-    conn = get_db_connection()
-    packages = conn.execute('SELECT * FROM packages').fetchall()
-    conn.close()
-
-    return jsonify([dict(row) for row in packages])
-
-@app.route('/packages', methods=['POST'])
-def create_package():
-    name = request.json['name']
-    description = request.json['description']
-    version = request.json['version']
-
-    conn = get_db_connection()
-    conn.execute('INSERT INTO packages (name, description, version) VALUES (?, ?, ?)', (name, description, version))
-    conn.commit()
-    conn.close()
-
-    return jsonify({"message": "Package created successfully!"}), 201
 
 @app.route('/signup', methods=['POST'])
 def signup():
-    username = request.json['username']
-    password = request.json['password']
-    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-
-    conn = get_db_connection()
-    conn.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_password))
-    conn.commit()
-    conn.close()
-
+    data = request.json
+    username = data['username']
+    password = data['password']
+    
+    if User.query.filter_by(username=username).first():
+        return jsonify({"message": "Username already exists"}), 409
+    
+    new_user = User(username=username, password=password)
+    db.session.add(new_user)
+    db.session.commit()
+    
     return jsonify({"message": "User created successfully!"}), 201
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    username = request.json['username']
-    password = request.json['password']
-
-    conn = get_db_connection()
-    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-    conn.close()
-
-    if user and bcrypt.check_password_hash(user['password'], password):
-        return jsonify({"message": "Login successful!"}), 200
-    else:
-        return jsonify({"message": "Invalid credentials"}), 401
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+        if user and user.password == password:
+            return jsonify({"message": "Login successful!"}), 200
+        else:
+            return jsonify({"message": "Invalid credentials"}), 401
+    return render_template('login.html')
 
 if __name__ == '__main__':
-    init_db()
-    app.run(debug=True)
+    db.create_all()
+    app.run(debug=False)
