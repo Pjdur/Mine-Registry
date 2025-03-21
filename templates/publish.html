@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Publish Package</title>
+</head>
+<body>
+    <h1>Publish Package</h1>
+    <form action="/publish" method="post">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required>
+        <br>
+        <label for="package_name">Package Name:</label>
+        <input type="text" id="package_name" name="package_name" required>
+        <br>
+        <label for="package_version">Package Version:</label>
+        <input type="text" id="package_version" name="package_version" required>
+        <br>
+        <label for="description">Description:</label>
+        <input type="text" id="description" name="description" required>
+        <br>
+        <label for="main_file">Main File:</label>
+        <input type="text" id="main_file" name="main_file" required>
+        <br>
+        <button type="submit">Publish</button>
+    </form>
+</body>
+</html>
